@@ -1,3 +1,6 @@
+mod input;
+mod models;
+
 fn main() {
-    println!("Hello, world!");
+    // Your main game loop will go here
 }
