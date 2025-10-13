@@ -6,8 +6,8 @@ pub fn get_player_info() -> Option<Player> {
     // We loop until we find the line that starts with "$$$ exec p".
     loop {
         let line = read_line()?;
-
-       if line.starts_with("$$$ exec p") {
+        
+        if line.starts_with("$$$ exec p") {
             if line.contains("p1") {
                 // We are Player 1
                 return Some(Player {
@@ -24,9 +24,9 @@ pub fn get_player_info() -> Option<Player> {
                     opponent: '@',
                     opponent_alt: 'a',
                 });
+            }
         }
     }
-  }
 }
 
 /// Reads a single line from standard input and trims the newline characters.
@@ -41,14 +41,29 @@ pub fn read_line() -> Option<String> {
         Ok(_) => {
             // Trim the trailing newline
             if buffer.ends_with('\n') {
-                buffer.pop();
-                // Also trim the carriage return if on Windows
                 if buffer.ends_with('\r') {
                     buffer.pop();
                 }
             }
             Some(buffer)
         }
-        Err(_) => None, // An error occurred
+        Err(_) => None, 
     }
 }
+
+pub fn parse_anfield(lines: &[String], width: usize, height: usize) -> Vec<Vec<char>> {
+    lines.iter().map(|line| line.chars().take(width).collect()).collect()
+}
+
+pub fn parse_piece(lines: &[String]) -> Vec<(usize, usize)> {
+    let mut cells = vec![];
+    for (y, line) in lines.iter().enumerate() {
+        for (x, c) in line.chars().enumerate() {
+            if c == 'O' || c == '#' {
+                cells.push((x, y));
+            }
+        }
+    }
+    cells
+}
+
