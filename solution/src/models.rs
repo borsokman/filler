@@ -7,6 +7,7 @@ pub struct Player {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct Piece {
     pub width: usize,
     pub height: usize,

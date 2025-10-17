@@ -51,7 +51,7 @@ pub fn read_line() -> Option<String> {
     }
 }
 
-pub fn parse_anfield(lines: &[String], width: usize, height: usize) -> Vec<Vec<char>> {
+pub fn parse_anfield(lines: &[String], width: usize, _height: usize) -> Vec<Vec<char>> {
     lines.iter().map(|line| line.chars().take(width).collect()).collect()
 }
 

@@ -2,7 +2,6 @@ mod models;
 mod input;
 mod logic;
 
-use crate::models::*;
 use crate::input::*;
 use crate::logic::*;
 
@@ -20,7 +19,7 @@ fn main() {
         let anfield = parse_anfield(&anfield_lines, width, height);
 
         // 2. Read Piece from stdin
-        let piece_width = 4;  // example
+        let _piece_width = 4;  // example
         let piece_height = 1; // example
         let mut piece_lines = vec![];
         for _ in 0..piece_height {
