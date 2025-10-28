@@ -9,3 +9,5 @@
 
 - `Terminator` is a very strong robot so it's optional to beat him.
 - For M1 Macs use `m1_robots` and `m1_game_engine`.
+
+`./m1_game_engine -f maps/map01 -p1 m1_robots/bender -p2 m1_robots/wall_e > /filler/solution/logs/game_log.txt 2>&1`
