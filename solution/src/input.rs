@@ -25,9 +25,8 @@ pub fn read_line() -> Option<String> {
     }
 }
 
+// Reads player info and sets the correct symbols for your bot and the opponent.
 pub fn get_player_info() -> Option<Player> {
-    // The game engine might send multiple lines before our player assignment.
-    // We loop until we find the line that starts with "$$$ exec p".
     loop {
         let line = read_line()?;
 
@@ -53,6 +52,8 @@ pub fn get_player_info() -> Option<Player> {
     }
 }
 
+// Reads the current map from standard input and stores it as a 2D grid.
+// The grid contains all cells: empty (.), your territory (@/a or $/s), and opponent's territory.
 pub fn read_map() -> Option<Map> {
     // Read the "Anfield" line
     let line = read_line()?;
@@ -74,6 +75,7 @@ pub fn read_map() -> Option<Map> {
     Some(Map { width, height, grid })
 }
 
+// Scans the grid after parsing to find all cells belonging to you and your opponent.
 pub fn get_positions(map: &Map, player: &Player) -> (Vec<(usize, usize)>, Vec<(usize, usize)>) {
     let mut my_positions = Vec::new();
     let mut opp_positions = Vec::new();
@@ -90,6 +92,8 @@ pub fn get_positions(map: &Map, player: &Player) -> (Vec<(usize, usize)>, Vec<(u
     (my_positions, opp_positions)
 }
 
+
+// Reads the piece, trims it to its minimal bounding box, and stores the trimmed shape.
 pub fn read_piece() -> Option<Piece> {
     let line = read_line()?;
     let parts: Vec<&str> = line.split_whitespace().collect();
@@ -145,3 +149,4 @@ pub fn trim_piece(raw_shape: &Vec<Vec<char>>) -> Vec<Vec<char>> {
     }
     trimmed
 }
+
