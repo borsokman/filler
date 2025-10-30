@@ -108,3 +108,40 @@ pub fn read_piece() -> Option<Piece> {
     Some(Piece { width: trimmed_shape[0].len(), height: trimmed_shape.len(), shape: trimmed_shape })
 }
 
+pub fn trim_piece(raw_shape: &Vec<Vec<char>>) -> Vec<Vec<char>> {
+    let height = raw_shape.len();
+    let width = if height > 0 { raw_shape[0].len() } else { 0 };
+
+    // Find min/max rows and columns containing 'O'
+    let mut min_row = height;
+    let mut max_row = 0;
+    let mut min_col = width;
+    let mut max_col = 0;
+
+    for y in 0..height {
+        for x in 0..width {
+            if raw_shape[y][x] == 'O' {
+                if y < min_row { min_row = y; }
+                if y > max_row { max_row = y; }
+                if x < min_col { min_col = x; }
+                if x > max_col { max_col = x; }
+            }
+        }
+    }
+
+    // If no 'O' found, return an empty shape
+    if min_row > max_row || min_col > max_col {
+        return Vec::new();
+    }
+
+    // Build trimmed shape
+    let mut trimmed = Vec::new();
+    for y in min_row..=max_row {
+        let mut row = Vec::new();
+        for x in min_col..=max_col {
+            row.push(raw_shape[y][x]);
+        }
+        trimmed.push(row);
+    }
+    trimmed
+}
