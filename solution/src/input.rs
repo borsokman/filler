@@ -124,23 +124,6 @@ pub fn read_map() -> Option<Map> {
     Some(Map { width, height, grid })
 }
 
-// Scans the grid after parsing to find all cells belonging to you and your opponent.
-pub fn get_positions(map: &Map, player: &Player) -> (Vec<(usize, usize)>, Vec<(usize, usize)>) {
-    let mut my_positions = Vec::new();
-    let mut opp_positions = Vec::new();
-    for y in 0..map.height {
-        for x in 0..map.width {
-            let cell = map.grid[y][x];
-            if cell == player.p1 || cell == player.p1_alt {
-                my_positions.push((y, x));
-            } else if cell == player.p2 || cell == player.p2_alt {
-                opp_positions.push((y, x));
-            }
-        }
-    }
-    (my_positions, opp_positions)
-}
-
 // Reads the piece, trims it to its minimal bounding box, and stores the trimmed shape.
 pub fn read_piece() -> Option<Piece> {
     log_input("read_piece() called");
