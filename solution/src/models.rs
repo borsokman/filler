@@ -15,4 +15,6 @@ pub struct Piece {
     pub width: usize,
     pub height: usize,
     pub shape: Vec<Vec<char>>,
+    pub offset_x: usize,
+    pub offset_y: usize,
 }

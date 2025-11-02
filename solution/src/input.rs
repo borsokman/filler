@@ -1,27 +1,54 @@
 use std::io::{self, BufRead};
-use crate::models::Player;Map;
+use crate::models::{Map, Piece, Player};
+use std::fs::OpenOptions;
+use std::io::Write;
+
+fn log_input(msg: &str) {
+    let mut file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("/tmp/bot_input.log")
+        .unwrap();
+    writeln!(file, "{}", msg).ok();
+}
 
 /// Reads a single line from standard input and trims the newline characters.
 /// Returns `None` if there is no more input (end of file).
+/// Skip empty lines.
 pub fn read_line() -> Option<String> {
-    let mut buffer = String::new();
     let stdin = io::stdin();
     let mut handle = stdin.lock();
-
-    match handle.read_line(&mut buffer) {
-        Ok(0) => None, // End of file, no bytes read
-        Ok(_) => {
-            // Trim the trailing newline
-            if buffer.ends_with('\n') {
-                buffer.pop();
-                // Also trim the carriage return if on Windows
-                if buffer.ends_with('\r') {
-                    buffer.pop();
-                }
+    
+    loop {
+        let mut buffer = String::new();
+        match handle.read_line(&mut buffer) {
+            Ok(0) => {
+                log_input("EOF reached");
+                return None; // End of file
             }
-            Some(buffer)
+            Ok(n) => {
+                log_input(&format!("Read {} bytes: {:?}", n, buffer));
+                // Trim the trailing newline
+                if buffer.ends_with('\n') {
+                    buffer.pop();
+                    if buffer.ends_with('\r') {
+                        buffer.pop();
+                    }
+                }
+                // Skip empty lines
+                let trimmed = buffer.trim();
+                if !trimmed.is_empty() {
+                    log_input(&format!("Returning: {:?}", trimmed));
+                    return Some(trimmed.to_string());
+                }
+                log_input("Empty line, continuing...");
+                // If empty, continue the loop to read the next line
+            }
+            Err(e) => {
+                log_input(&format!("Error reading: {:?}", e));
+                return None;
+            }
         }
-        Err(_) => None, // An error occurred
     }
 }
 
@@ -42,36 +69,58 @@ pub fn get_player_info() -> Option<Player> {
             } else if line.contains("p2") {
                 // We are Player 2
                 return Some(Player {
-                    p2: '$',
-                    p2_alt: 's',
-                    p1: '@',
-                    p1_alt: 'a',
+                    p1: '$',
+                    p1_alt: 's',
+                    p2: '@',
+                    p2_alt: 'a',
                 });
             }
         }
     }
 }
 
-// Reads the current map from standard input and stores it as a 2D grid.
-// The grid contains all cells: empty (.), your territory (@/a or $/s), and opponent's territory.
 pub fn read_map() -> Option<Map> {
-    // Read the "Anfield" line
-    let line = read_line()?;
+    log_input("read_map() called");
+    // Keep reading until we find the "Anfield" line
+    let line = loop {
+        let l = read_line()?;
+        log_input(&format!("Looking for Anfield, got: {:?}", l));
+        if l.contains("Anfield") {
+            log_input("Found Anfield line");
+            break l;
+        }
+    };
+    
     let parts: Vec<&str> = line.split_whitespace().collect();
-    let width: usize = parts[1].parse().ok()?;  // 20
-    let height: usize = parts[2].trim_end_matches(':').parse().ok()?; // 15
+    if parts.len() < 3 {
+        log_input("Not enough parts in Anfield line");
+        return None;
+    }
+    let width: usize = parts[1].parse().ok()?;
+    let height: usize = parts[2].trim_end_matches(':').parse().ok()?;
+    log_input(&format!("Map dimensions: {}x{}", width, height));
 
     // Skip the column header line
     read_line()?;
 
     let mut grid = Vec::with_capacity(height);
-    for _ in 0..height {
+    for i in 0..height {
         let row_line = read_line()?;
+        log_input(&format!("Row {}: {:?}", i, row_line));
         // Skip the first 4 characters (row number and space)
+        if row_line.len() < 4 {
+            log_input("Row too short");
+            return None;
+        }
         let row: Vec<char> = row_line.chars().skip(4).collect();
+        if row.len() != width {
+            log_input(&format!("Row width mismatch: got {}, expected {}", row.len(), width));
+            return None;
+        }
         grid.push(row);
     }
 
+    log_input("Map read successfully");
     Some(Map { width, height, grid })
 }
 
@@ -92,27 +141,54 @@ pub fn get_positions(map: &Map, player: &Player) -> (Vec<(usize, usize)>, Vec<(u
     (my_positions, opp_positions)
 }
 
-
 // Reads the piece, trims it to its minimal bounding box, and stores the trimmed shape.
 pub fn read_piece() -> Option<Piece> {
-    let line = read_line()?;
+    log_input("read_piece() called");
+    // Keep reading until we find the "Piece" line
+    let line = loop {
+        let l = read_line()?;
+        log_input(&format!("Looking for Piece, got: {:?}", l));
+        if l.starts_with("Piece") {
+            log_input("Found Piece line");
+            break l;
+        }
+    };
+
     let parts: Vec<&str> = line.split_whitespace().collect();
-    let width: usize = parts[1].parse().ok()?;
+    let _width: usize = parts[1].parse().ok()?;
     let height: usize = parts[2].trim_end_matches(':').parse().ok()?;
 
     let mut raw_shape = Vec::with_capacity(height);
     for _ in 0..height {
         let row = read_line()?.chars().collect::<Vec<char>>();
+        log_input(&format!("Raw piece row: {:?}", row));
         raw_shape.push(row);
     }
 
-    // Trimming logic here (find min/max rows/cols with 'O')
-    let trimmed_shape = trim_piece(&raw_shape);
+    let (trimmed_shape, offset_y, offset_x) = trim_piece(&raw_shape);
+    
+    log_input(&format!("Trimmed piece shape with offset_y={}, offset_x={}:", offset_y, offset_x));
+    for row in &trimmed_shape {
+        log_input(&format!("  {:?}", row.iter().collect::<String>()));
+    }
 
-    Some(Piece { width: trimmed_shape[0].len(), height: trimmed_shape.len(), shape: trimmed_shape })
+    if trimmed_shape.is_empty() {
+        // If the piece is empty, return a piece with 0 width and height.
+        Some(Piece { width: 0, height: 0, shape: trimmed_shape, offset_x: 0, offset_y: 0 })
+    } else {
+        let piece = Piece { 
+            width: trimmed_shape[0].len(), 
+            height: trimmed_shape.len(), 
+            shape: trimmed_shape,
+            offset_x,
+            offset_y,
+        };
+        log_input(&format!("Returning piece: {}x{}", piece.width, piece.height));
+        Some(piece)
+    }
 }
 
-pub fn trim_piece(raw_shape: &Vec<Vec<char>>) -> Vec<Vec<char>> {
+pub fn trim_piece(raw_shape: &Vec<Vec<char>>) -> (Vec<Vec<char>>, usize, usize) {
     let height = raw_shape.len();
     let width = if height > 0 { raw_shape[0].len() } else { 0 };
 
@@ -135,7 +211,7 @@ pub fn trim_piece(raw_shape: &Vec<Vec<char>>) -> Vec<Vec<char>> {
 
     // If no 'O' found, return an empty shape
     if min_row > max_row || min_col > max_col {
-        return Vec::new();
+        return (Vec::new(), 0, 0);
     }
 
     // Build trimmed shape
@@ -147,6 +223,6 @@ pub fn trim_piece(raw_shape: &Vec<Vec<char>>) -> Vec<Vec<char>> {
         }
         trimmed.push(row);
     }
-    trimmed
+    (trimmed, min_row, min_col)
 }
 
