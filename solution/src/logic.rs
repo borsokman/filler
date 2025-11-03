@@ -35,6 +35,20 @@ pub fn can_place(
     board_y: usize,
     board_x: usize,
 ) -> bool {
+
+    let untrimmed_y = board_y.saturating_sub(piece.offset_y);
+    let untrimmed_x = board_x.saturating_sub(piece.offset_x);
+    // Check if the full untrimmed piece would go out of bounds
+    if untrimmed_y + piece.original_height > map.height {
+        log_logic(&format!("can_place REJECT: untrimmed_y={} + original_height={} = {} > map.height={}", 
+            untrimmed_y, piece.original_height, untrimmed_y + piece.original_height, map.height));
+        return false;
+    }
+    if untrimmed_x + piece.original_width > map.width {
+        log_logic(&format!("can_place REJECT: untrimmed_x={} + original_width={} = {} > map.width={}", 
+            untrimmed_x, piece.original_width, untrimmed_x + piece.original_width, map.width));
+        return false;
+    }
     let mut overlap_count = 0;
     log_logic(&format!("can_place called: board_y={}, board_x={}, piece={}x{}", board_y, board_x, piece.width, piece.height));
 
@@ -46,30 +60,30 @@ pub fn can_place(
             let y = board_y + py;
             let x = board_x + px;
 
-            // Check bounds
             if y >= map.height || x >= map.width {
                 log_logic(&format!("  Out of bounds at ({}, {})", y, x));
                 return false;
             }
 
             let cell = map.grid[y][x];
-            log_logic(&format!("  Checking ({}, {}) = '{}'", y, x, cell));
+            log_logic(&format!("  Checking ({}, {}) = '{}', piece.shape[{}][{}] = '{}'", y, x, cell, py, px, piece.shape[py][px]));
 
-            // Check overlap with own territory
             if cell == player.p1 || cell == player.p1_alt {
                 overlap_count += 1;
-                log_logic(&format!("    Overlap with own territory, count={}", overlap_count));
+                if overlap_count > 1 {
+                    log_logic(&format!("  Too many overlaps at ({}, {}) count={}", y, x, overlap_count));
+                     return false;
+                }
             }
-            // Check overlap with opponent
             else if cell == player.p2 || cell == player.p2_alt {
-                log_logic("    Overlap with enemy!");
+                log_logic("    ✗ Overlap with enemy!");
                 return false;
             }
         }
     }
 
     let result = overlap_count == 1;
-    log_logic(&format!("  Result: overlap_count={}, returning {}", overlap_count, result));
+    log_logic(&format!("  Final: overlap_count={}, returning {}", overlap_count, result));
     result
 }
 
@@ -134,21 +148,33 @@ fn count_new_cells(piece: &Piece) -> usize {
 }
 
 pub fn find_best_move(map: &Map, piece: &Piece, player: &Player) -> (usize, usize) {
-    // Handle pieces that are too large for the map to prevent panics.
+    log_logic(&format!("\n=== FIND_BEST_MOVE START ==="));
+    log_logic(&format!("Piece: {}x{} (trimmed), original: {}x{}, offset: ({}, {})",
+        piece.width, piece.height, piece.original_width, piece.original_height,
+        piece.offset_x, piece.offset_y));
+    
     if piece.height > map.height || piece.width > map.width {
+        log_logic("Piece too large for map!");
         return (0, 0);
     }
 
-    let (_, enemy_positions) = get_positions(map, player);
+    let (my_positions, enemy_positions) = get_positions(map, player);
+    log_logic(&format!("My territory: {} cells, Enemy: {} cells", my_positions.len(), enemy_positions.len()));
+    
     let current_global_min = shortest_distance_between_players(map, player);
-    let mut all_moves: Vec<((usize, usize), usize, usize, usize)> = Vec::new(); 
+    log_logic(&format!("Current global min distance: {}", current_global_min));
+    
+    let mut all_moves: Vec<((usize, usize), usize, usize, usize)> = Vec::new();
+    
+    let max_y = map.height - piece.height;
+    let max_x = map.width - piece.width;
+    log_logic(&format!("Scanning positions: y=0..={}, x=0..={}", max_y, max_x));
   
-    for y in 0..=map.height - piece.height {
-        for x in 0..=map.width - piece.width {
+    for y in 0..=max_y {
+        for x in 0..=max_x {
             if can_place(map, piece, player, y, x) {
                 let touch_count = count_adjacent_enemy_cells(map, piece, player, y, x);
                 
-                // Calculate minimum distance from this piece placement to enemy
                 let mut local_min_dist = usize::MAX;
                 for py in 0..piece.height {
                     for px in 0..piece.width {
@@ -167,40 +193,39 @@ pub fn find_best_move(map: &Map, piece: &Piece, player: &Player) -> (usize, usiz
                 }
                 
                 let new_cells = count_new_cells(piece);
+                log_logic(&format!("✓ Valid move at ({}, {}): touch={}, dist={}, cells={}",
+                    y, x, touch_count, local_min_dist, new_cells));
                 all_moves.push(((y, x), touch_count, local_min_dist, new_cells));
             }
         }
     }
 
+    log_logic(&format!("Total valid moves found: {}", all_moves.len()));
+
     if all_moves.is_empty() {
+        log_logic("❌ NO VALID MOVES - Returning (0, 0)");
         return (0, 0);
     }
 
-    // Sort with awareness of global position
+    // Sort moves
     all_moves.sort_by(|a, b| {
-        // 1. Compare touch counts (higher is better)
         match b.1.cmp(&a.1) { 
             std::cmp::Ordering::Equal => {
-                // 2. If both have same touch count...
                 if a.1 > 0 {
-                    // 3. Both are touching (touch_count > 0): prefer more cells
                     match b.3.cmp(&a.3) {
-                        std::cmp::Ordering::Equal => a.0.cmp(&b.0), // Tie: prefer top-left
+                        std::cmp::Ordering::Equal => a.0.cmp(&b.0),
                         other => other,
                     }
                 } else {
-                    // 4. Neither is touching (touch_count == 0): prefer getting closer
                     let a_improves = a.2 < current_global_min;
                     let b_improves = b.2 < current_global_min;
                     
                     match (a_improves, b_improves) {
-                        (true, false) => std::cmp::Ordering::Less,    // A improves, B doesn't → A wins
-                        (false, true) => std::cmp::Ordering::Greater, // B improves, A doesn't → B wins
+                        (true, false) => std::cmp::Ordering::Less,
+                        (false, true) => std::cmp::Ordering::Greater,
                         _ => {
-                            // Both improve or both don't: compare distances
-                            match a.2.cmp(&b.2) { // Smaller distance is better
+                            match a.2.cmp(&b.2) {
                                 std::cmp::Ordering::Equal => {
-                                    // Same distance: prefer more cells
                                     match b.3.cmp(&a.3) {
                                         std::cmp::Ordering::Equal => a.0.cmp(&b.0),
                                         other => other,
@@ -212,9 +237,17 @@ pub fn find_best_move(map: &Map, piece: &Piece, player: &Player) -> (usize, usiz
                     }
                 }
             }
-            other => other, // Not equal? Use the touch_count comparison result
+            other => other,
         }
     });
+
+    log_logic(&format!("🏆 Best move: ({}, {}) with touch={}, dist={}, cells={}",
+        all_moves[0].0.0, all_moves[0].0.1, all_moves[0].1, all_moves[0].2, all_moves[0].3));
+    log_logic(&format!("Top 5 moves:"));
+    for (i, m) in all_moves.iter().take(5).enumerate() {
+        log_logic(&format!("  {}. ({}, {}) touch={}, dist={}, cells={}",
+            i+1, m.0.0, m.0.1, m.1, m.2, m.3));
+    }
 
     all_moves[0].0
 }
