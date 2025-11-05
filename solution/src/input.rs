@@ -1,16 +1,5 @@
 use std::io::{self, BufRead};
 use crate::models::{Map, Piece, Player};
-use std::fs::OpenOptions;
-use std::io::Write;
-
-fn log_input(msg: &str) {
-    let mut file = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open("/tmp/bot_input.log")
-        .unwrap();
-    writeln!(file, "{}", msg).ok();
-}
 
 /// Reads a single line from standard input and trims the newline characters.
 /// Returns `None` if there is no more input (end of file).
@@ -23,11 +12,9 @@ pub fn read_line() -> Option<String> {
         let mut buffer = String::new();
         match handle.read_line(&mut buffer) {
             Ok(0) => {
-                log_input("EOF reached");
                 return None; // End of file
             }
-            Ok(n) => {
-                log_input(&format!("Read {} bytes: {:?}", n, buffer));
+            Ok(_) => {
                 // Trim the trailing newline
                 if buffer.ends_with('\n') {
                     buffer.pop();
@@ -38,14 +25,10 @@ pub fn read_line() -> Option<String> {
                 // Skip empty lines
                 let trimmed = buffer.trim();
                 if !trimmed.is_empty() {
-                    log_input(&format!("Returning: {:?}", trimmed));
                     return Some(trimmed.to_string());
                 }
-                log_input("Empty line, continuing...");
-                // If empty, continue the loop to read the next line
             }
-            Err(e) => {
-                log_input(&format!("Error reading: {:?}", e));
+            Err(_) => {
                 return None;
             }
         }
@@ -80,59 +63,46 @@ pub fn get_player_info() -> Option<Player> {
 }
 
 pub fn read_map() -> Option<Map> {
-    log_input("read_map() called");
     // Keep reading until we find the "Anfield" line
     let line = loop {
         let l = read_line()?;
-        log_input(&format!("Looking for Anfield, got: {:?}", l));
         if l.contains("Anfield") {
-            log_input("Found Anfield line");
             break l;
         }
     };
     
     let parts: Vec<&str> = line.split_whitespace().collect();
     if parts.len() < 3 {
-        log_input("Not enough parts in Anfield line");
         return None;
     }
     let width: usize = parts[1].parse().ok()?;
     let height: usize = parts[2].trim_end_matches(':').parse().ok()?;
-    log_input(&format!("Map dimensions: {}x{}", width, height));
 
     // Skip the column header line
     read_line()?;
 
     let mut grid = Vec::with_capacity(height);
-    for i in 0..height {
+    for _ in 0..height {
         let row_line = read_line()?;
-        log_input(&format!("Row {}: {:?}", i, row_line));
         // Skip the first 4 characters (row number and space)
         if row_line.len() < 4 {
-            log_input("Row too short");
             return None;
         }
         let row: Vec<char> = row_line.chars().skip(4).collect();
         if row.len() != width {
-            log_input(&format!("Row width mismatch: got {}, expected {}", row.len(), width));
             return None;
         }
         grid.push(row);
     }
 
-    log_input("Map read successfully");
     Some(Map { width, height, grid })
 }
 
 // Reads the piece, trims it to its minimal bounding box, and stores the trimmed shape.
 pub fn read_piece() -> Option<Piece> {
-    log_input("read_piece() called");
-    // Keep reading until we find the "Piece" line
     let line = loop {
         let l = read_line()?;
-        log_input(&format!("Looking for Piece, got: {:?}", l));
         if l.starts_with("Piece") {
-            log_input("Found Piece line");
             break l;
         }
     };
@@ -146,16 +116,10 @@ pub fn read_piece() -> Option<Piece> {
     let mut raw_shape = Vec::with_capacity(height);
     for _ in 0..height {
         let row = read_line()?.chars().collect::<Vec<char>>();
-        log_input(&format!("Raw piece row: {:?}", row));
         raw_shape.push(row);
     }
 
     let (trimmed_shape, offset_y, offset_x) = trim_piece(&raw_shape);
-    
-    log_input(&format!("Trimmed piece shape with offset_y={}, offset_x={}:", offset_y, offset_x));
-    for row in &trimmed_shape {
-        log_input(&format!("  {:?}", row.iter().collect::<String>()));
-    }
 
     if trimmed_shape.is_empty() {
         // If the piece is empty, return a piece with 0 width and height.
@@ -170,7 +134,6 @@ pub fn read_piece() -> Option<Piece> {
             original_width,
             original_height,
         };
-        log_input(&format!("Returning piece: {}x{}", piece.width, piece.height));
         Some(piece)
     }
 }

@@ -23,12 +23,6 @@ cargo build --release
 cp target/release/solution bot
 cd /filler
 
-Vs bender
-
-./m1_game_engine -f maps/map00 -p1 solution/bot -p2 m1_robots/bender > solution/logs/bender_map00.txt 2>&1
-./m1_game_engine -f maps/map01 -p1 solution/bot -p2 m1_robots/bender > solution/logs/bender_map01.txt 2>&1
-./m1_game_engine -f maps/map02 -p1 solution/bot -p2 m1_robots/bender > solution/logs/bender_map02.txt 2>&1
-
 Vs h2_d2
 
 ./m1_game_engine -f maps/map00 -p1 solution/bot -p2 m1_robots/h2_d2 > solution/logs/h2_d2_map00.txt 2>&1
@@ -40,6 +34,12 @@ Vs wall_e
 ./m1_game_engine -f maps/map00 -p1 solution/bot -p2 m1_robots/wall_e > solution/logs/wall_e_map00.txt 2>&1
 ./m1_game_engine -f maps/map01 -p1 solution/bot -p2 m1_robots/wall_e > solution/logs/wall_e_map01.txt 2>&1
 ./m1_game_engine -f maps/map02 -p1 solution/bot -p2 m1_robots/wall_e > solution/logs/wall_e_map02.txt 2>&1
+
+Vs bender
+
+./m1_game_engine -f maps/map00 -p1 solution/bot -p2 m1_robots/bender > solution/logs/bender_map00.txt 2>&1
+./m1_game_engine -f maps/map01 -p1 solution/bot -p2 m1_robots/bender > solution/logs/bender_map01.txt 2>&1
+./m1_game_engine -f maps/map02 -p1 solution/bot -p2 m1_robots/bender > solution/logs/bender_map02.txt 2>&1
 
 Vs terminator
 

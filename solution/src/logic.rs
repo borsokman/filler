@@ -1,15 +1,4 @@
 use crate::models::{Map, Piece, Player};
-use std::fs::OpenOptions;
-use std::io::Write;
-
-fn log_logic(msg: &str) {
-    let mut file = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open("/tmp/bot_logic.log")
-        .unwrap();
-    writeln!(file, "{}", msg).ok();
-}
 
 // Scans the grid after parsing to find all cells belonging to you and your opponent.
 pub fn get_positions(map: &Map, player: &Player) -> (Vec<(usize, usize)>, Vec<(usize, usize)>) {
@@ -39,18 +28,13 @@ pub fn can_place(
     let untrimmed_y = board_y.saturating_sub(piece.offset_y);
     let untrimmed_x = board_x.saturating_sub(piece.offset_x);
     // Check if the full untrimmed piece would go out of bounds
-    if untrimmed_y + piece.original_height > map.height {
-        log_logic(&format!("can_place REJECT: untrimmed_y={} + original_height={} = {} > map.height={}", 
-            untrimmed_y, piece.original_height, untrimmed_y + piece.original_height, map.height));
+    if untrimmed_y + piece.original_height > map.height { 
         return false;
     }
     if untrimmed_x + piece.original_width > map.width {
-        log_logic(&format!("can_place REJECT: untrimmed_x={} + original_width={} = {} > map.width={}", 
-            untrimmed_x, piece.original_width, untrimmed_x + piece.original_width, map.width));
         return false;
     }
     let mut overlap_count = 0;
-    log_logic(&format!("can_place called: board_y={}, board_x={}, piece={}x{}", board_y, board_x, piece.width, piece.height));
 
     for py in 0..piece.height {
         for px in 0..piece.width {
@@ -61,29 +45,24 @@ pub fn can_place(
             let x = board_x + px;
 
             if y >= map.height || x >= map.width {
-                log_logic(&format!("  Out of bounds at ({}, {})", y, x));
                 return false;
             }
 
             let cell = map.grid[y][x];
-            log_logic(&format!("  Checking ({}, {}) = '{}', piece.shape[{}][{}] = '{}'", y, x, cell, py, px, piece.shape[py][px]));
 
             if cell == player.p1 || cell == player.p1_alt {
                 overlap_count += 1;
                 if overlap_count > 1 {
-                    log_logic(&format!("  Too many overlaps at ({}, {}) count={}", y, x, overlap_count));
                      return false;
                 }
             }
             else if cell == player.p2 || cell == player.p2_alt {
-                log_logic("    ✗ Overlap with enemy!");
                 return false;
             }
         }
     }
 
     let result = overlap_count == 1;
-    log_logic(&format!("  Final: overlap_count={}, returning {}", overlap_count, result));
     result
 }
 
@@ -148,27 +127,16 @@ fn count_new_cells(piece: &Piece) -> usize {
 }
 
 pub fn find_best_move(map: &Map, piece: &Piece, player: &Player) -> (usize, usize) {
-    log_logic(&format!("\n=== FIND_BEST_MOVE START ==="));
-    log_logic(&format!("Piece: {}x{} (trimmed), original: {}x{}, offset: ({}, {})",
-        piece.width, piece.height, piece.original_width, piece.original_height,
-        piece.offset_x, piece.offset_y));
-    
+
     if piece.height > map.height || piece.width > map.width {
-        log_logic("Piece too large for map!");
         return (0, 0);
     }
 
-    let (my_positions, enemy_positions) = get_positions(map, player);
-    log_logic(&format!("My territory: {} cells, Enemy: {} cells", my_positions.len(), enemy_positions.len()));
-    
+    let (_my_positions, enemy_positions) = get_positions(map, player);
     let current_global_min = shortest_distance_between_players(map, player);
-    log_logic(&format!("Current global min distance: {}", current_global_min));
-    
     let mut all_moves: Vec<((usize, usize), usize, usize, usize)> = Vec::new();
-    
     let max_y = map.height - piece.height;
     let max_x = map.width - piece.width;
-    log_logic(&format!("Scanning positions: y=0..={}, x=0..={}", max_y, max_x));
   
     for y in 0..=max_y {
         for x in 0..=max_x {
@@ -193,17 +161,12 @@ pub fn find_best_move(map: &Map, piece: &Piece, player: &Player) -> (usize, usiz
                 }
                 
                 let new_cells = count_new_cells(piece);
-                log_logic(&format!("✓ Valid move at ({}, {}): touch={}, dist={}, cells={}",
-                    y, x, touch_count, local_min_dist, new_cells));
                 all_moves.push(((y, x), touch_count, local_min_dist, new_cells));
             }
         }
     }
 
-    log_logic(&format!("Total valid moves found: {}", all_moves.len()));
-
     if all_moves.is_empty() {
-        log_logic("❌ NO VALID MOVES - Returning (0, 0)");
         return (0, 0);
     }
 
@@ -240,14 +203,6 @@ pub fn find_best_move(map: &Map, piece: &Piece, player: &Player) -> (usize, usiz
             other => other,
         }
     });
-
-    log_logic(&format!("🏆 Best move: ({}, {}) with touch={}, dist={}, cells={}",
-        all_moves[0].0.0, all_moves[0].0.1, all_moves[0].1, all_moves[0].2, all_moves[0].3));
-    log_logic(&format!("Top 5 moves:"));
-    for (i, m) in all_moves.iter().take(5).enumerate() {
-        log_logic(&format!("  {}. ({}, {}) touch={}, dist={}, cells={}",
-            i+1, m.0.0, m.0.1, m.1, m.2, m.3));
-    }
 
     all_moves[0].0
 }
