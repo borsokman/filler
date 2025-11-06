@@ -1,5 +1,6 @@
 mod models;
 mod logic;
+mod input;
 
 use input::{get_player_info, read_map, read_piece};
 use logic::find_best_move;

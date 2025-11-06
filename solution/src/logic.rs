@@ -25,15 +25,16 @@ pub fn can_place(
     board_x: usize,
 ) -> bool {
 
-    let untrimmed_y = board_y.saturating_sub(piece.offset_y);
-    let untrimmed_x = board_x.saturating_sub(piece.offset_x);
+    let untrimmed_y = board_y as i32 - piece.offset_y as i32;
+    let untrimmed_x = board_x as i32 - piece.offset_x as i32;
     // Check if the full untrimmed piece would go out of bounds
-    if untrimmed_y + piece.original_height > map.height { 
+    if untrimmed_y + piece.original_height as i32 > map.height as i32 { 
         return false;
     }
-    if untrimmed_x + piece.original_width > map.width {
+    if untrimmed_x + piece.original_width as i32 > map.width as i32 {
         return false;
     }
+
     let mut overlap_count = 0;
 
     for py in 0..piece.height {

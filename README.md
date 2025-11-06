@@ -42,7 +42,7 @@ Vs terminator
 ./m1_game_engine -f maps/map01 -p1 solution/bot -p2 m1_robots/terminator > solution/logs/terminator_map01.txt 2>&1
 ./m1_game_engine -f maps/map02 -p1 solution/bot -p2 m1_robots/terminator > solution/logs/terminator_map02.txt 2>&1
 
-Visualizer:
+Visualizer inside /solution:
 
 ./target/release/visualizer logs/h2_d2_map00.txt
 
