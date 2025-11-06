@@ -10,14 +10,9 @@
 - `Terminator` is a very strong robot so it's optional to beat him.
 - For M1 Macs use `m1_robots` and `m1_game_engine`.
 
-Check the debug log:
+Recompile steps:
 
-cat /tmp/bot_debug.log
-cat /tmp/bot_input.log
-cat /tmp/bot_logic.log
-
-recompile steps:
-
+docker run --rm -v "$(pwd)/solution":/filler/solution -it filler
 cd /filler/solution
 cargo build --release
 cp target/release/solution bot
@@ -46,3 +41,13 @@ Vs terminator
 ./m1_game_engine -f maps/map00 -p1 solution/bot -p2 m1_robots/terminator > solution/logs/terminator_map00.txt 2>&1
 ./m1_game_engine -f maps/map01 -p1 solution/bot -p2 m1_robots/terminator > solution/logs/terminator_map01.txt 2>&1
 ./m1_game_engine -f maps/map02 -p1 solution/bot -p2 m1_robots/terminator > solution/logs/terminator_map02.txt 2>&1
+
+Visualizer:
+
+./target/release/visualizer logs/h2_d2_map00.txt
+
+./target/release/visualizer logs/wall_e_map00.txt
+
+./target/release/visualizer logs/bender_map00.txt
+
+./target/release/visualizer logs/terminator_map00.txt
