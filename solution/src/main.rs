@@ -1,40 +1,45 @@
 mod models;
-mod input;
 mod logic;
 
-use crate::input::*;
-use crate::logic::*;
+use input::{get_player_info, read_map, read_piece};
+use logic::find_best_move;
 
 fn main() {
-    let player = get_player_info().expect("Could not get player info");
+    
+    let player = match get_player_info() {
+        Some(p) => {
+            p
+        },
+        None => {
+            return;
+        }
+    };
 
     loop {
-        // 1. Read Anfield from stdin (size + lines)
-        let width = 20;  // example
-        let height = 15; // example
-        let mut anfield_lines = vec![];
-        for _ in 0..height { 
-            if let Some(line) = read_line() { anfield_lines.push(line); } 
-        }
-        let anfield = parse_anfield(&anfield_lines, width, height);
+        let map = match read_map() {
+            Some(m) => {
+                m
+            },
+            None => {
+                break;
+            }
+        };
 
-        // 2. Read Piece from stdin
-        let _piece_width = 4;  // example
-        let piece_height = 1; // example
-        let mut piece_lines = vec![];
-        for _ in 0..piece_height {
-            if let Some(line) = read_line() { piece_lines.push(line); }
-        }
-        let piece_cells = parse_piece(&piece_lines);
+        let piece = match read_piece() {
+            Some(p) => {
+                p
+            },
+            None => {
+                break;
+            }
+        };
 
-        // 3. Find best move
-        let mv = find_best_move(&anfield, &piece_cells, &player);
-
-        // 4. Output move
-        if let Some((x, y)) = mv {
-            println!("{} {}", x, y);
-        } else {
-            println!("0 0");
-        }
+        let (y, x) = find_best_move(&map, &piece, &player);
+        // Convert from trimmed piece coordinates to untrimmed piece coordinates
+        let actual_y = y as i32 - piece.offset_y as i32;
+        let actual_x = x as i32 - piece.offset_x as i32;
+        
+        // Output format: X Y (column row)
+        println!("{} {}", actual_x, actual_y);
     }
 }

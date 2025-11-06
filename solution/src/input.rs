@@ -1,31 +1,42 @@
 use std::io::{self, BufRead};
-use crate::models::Player;Map;
+use crate::models::{Map, Piece, Player};
 
 /// Reads a single line from standard input and trims the newline characters.
 /// Returns `None` if there is no more input (end of file).
+/// Skip empty lines.
 pub fn read_line() -> Option<String> {
-    let mut buffer = String::new();
     let stdin = io::stdin();
     let mut handle = stdin.lock();
-
-    match handle.read_line(&mut buffer) {
-        Ok(0) => None, // End of file, no bytes read
-        Ok(_) => {
-            // Trim the trailing newline
-            if buffer.ends_with('\n') {
-                if buffer.ends_with('\r') {
+    
+    loop {
+        let mut buffer = String::new();
+        match handle.read_line(&mut buffer) {
+            Ok(0) => {
+                return None; // End of file
+            }
+            Ok(_) => {
+                // Trim the trailing newline
+                if buffer.ends_with('\n') {
                     buffer.pop();
+                    if buffer.ends_with('\r') {
+                        buffer.pop();
+                    }
+                }
+                // Skip empty lines
+                let trimmed = buffer.trim();
+                if !trimmed.is_empty() {
+                    return Some(trimmed.to_string());
                 }
             }
-            Some(buffer)
+            Err(_) => {
+                return None;
+            }
         }
-        Err(_) => None, 
     }
 }
 
+// Reads player info and sets the correct symbols for your bot and the opponent.
 pub fn get_player_info() -> Option<Player> {
-    // The game engine might send multiple lines before our player assignment.
-    // We loop until we find the line that starts with "$$$ exec p".
     loop {
         let line = read_line()?;
 
@@ -41,10 +52,10 @@ pub fn get_player_info() -> Option<Player> {
             } else if line.contains("p2") {
                 // We are Player 2
                 return Some(Player {
-                    p2: '$',
-                    p2_alt: 's',
-                    p1: '@',
-                    p1_alt: 'a',
+                    p1: '$',
+                    p1_alt: 's',
+                    p2: '@',
+                    p2_alt: 'a',
                 });
             }
         }
@@ -52,11 +63,20 @@ pub fn get_player_info() -> Option<Player> {
 }
 
 pub fn read_map() -> Option<Map> {
-    // Read the "Anfield" line
-    let line = read_line()?;
+    // Keep reading until we find the "Anfield" line
+    let line = loop {
+        let l = read_line()?;
+        if l.contains("Anfield") {
+            break l;
+        }
+    };
+    
     let parts: Vec<&str> = line.split_whitespace().collect();
-    let width: usize = parts[1].parse().ok()?;  // 20
-    let height: usize = parts[2].trim_end_matches(':').parse().ok()?; // 15
+    if parts.len() < 3 {
+        return None;
+    }
+    let width: usize = parts[1].parse().ok()?;
+    let height: usize = parts[2].trim_end_matches(':').parse().ok()?;
 
     // Skip the column header line
     read_line()?;
@@ -65,33 +85,32 @@ pub fn read_map() -> Option<Map> {
     for _ in 0..height {
         let row_line = read_line()?;
         // Skip the first 4 characters (row number and space)
+        if row_line.len() < 4 {
+            return None;
+        }
         let row: Vec<char> = row_line.chars().skip(4).collect();
+        if row.len() != width {
+            return None;
+        }
         grid.push(row);
     }
 
     Some(Map { width, height, grid })
 }
 
-pub fn get_positions(map: &Map, player: &Player) -> (Vec<(usize, usize)>, Vec<(usize, usize)>) {
-    let mut my_positions = Vec::new();
-    let mut opp_positions = Vec::new();
-    for y in 0..map.height {
-        for x in 0..map.width {
-            let cell = map.grid[y][x];
-            if cell == player.p1 || cell == player.p1_alt {
-                my_positions.push((y, x));
-            } else if cell == player.p2 || cell == player.p2_alt {
-                opp_positions.push((y, x));
-            }
-        }
-    }
-    (my_positions, opp_positions)
-}
-
+// Reads the piece, trims it to its minimal bounding box, and stores the trimmed shape.
 pub fn read_piece() -> Option<Piece> {
-    let line = read_line()?;
+    let line = loop {
+        let l = read_line()?;
+        if l.starts_with("Piece") {
+            break l;
+        }
+    };
+
     let parts: Vec<&str> = line.split_whitespace().collect();
-    let width: usize = parts[1].parse().ok()?;
+    let original_width: usize = parts[1].parse().ok()?;
+    let original_height: usize = parts[2].trim_end_matches(':').parse().ok()?;
+    let _width: usize = parts[1].parse().ok()?;
     let height: usize = parts[2].trim_end_matches(':').parse().ok()?;
 
     let mut raw_shape = Vec::with_capacity(height);
@@ -100,13 +119,26 @@ pub fn read_piece() -> Option<Piece> {
         raw_shape.push(row);
     }
 
-    // Trimming logic here (find min/max rows/cols with 'O')
-    let trimmed_shape = trim_piece(&raw_shape);
+    let (trimmed_shape, offset_y, offset_x) = trim_piece(&raw_shape);
 
-    Some(Piece { width: trimmed_shape[0].len(), height: trimmed_shape.len(), shape: trimmed_shape })
+    if trimmed_shape.is_empty() {
+        // If the piece is empty, return a piece with 0 width and height.
+        Some(Piece { width: 0, height: 0, shape: trimmed_shape, offset_x: 0, offset_y: 0,  original_width, original_height, })
+    } else {
+        let piece = Piece { 
+            width: trimmed_shape[0].len(), 
+            height: trimmed_shape.len(), 
+            shape: trimmed_shape,
+            offset_x,
+            offset_y,
+            original_width,
+            original_height,
+        };
+        Some(piece)
+    }
 }
 
-pub fn trim_piece(raw_shape: &Vec<Vec<char>>) -> Vec<Vec<char>> {
+pub fn trim_piece(raw_shape: &Vec<Vec<char>>) -> (Vec<Vec<char>>, usize, usize) {
     let height = raw_shape.len();
     let width = if height > 0 { raw_shape[0].len() } else { 0 };
 
@@ -129,7 +161,7 @@ pub fn trim_piece(raw_shape: &Vec<Vec<char>>) -> Vec<Vec<char>> {
 
     // If no 'O' found, return an empty shape
     if min_row > max_row || min_col > max_col {
-        return Vec::new();
+        return (Vec::new(), 0, 0);
     }
 
     // Build trimmed shape
@@ -141,5 +173,6 @@ pub fn trim_piece(raw_shape: &Vec<Vec<char>>) -> Vec<Vec<char>> {
         }
         trimmed.push(row);
     }
-    trimmed
+    (trimmed, min_row, min_col)
 }
+
