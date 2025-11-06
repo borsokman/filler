@@ -38,7 +38,7 @@ fn main() {
         let (y, x) = find_best_move(&map, &piece, &player);
         // Convert from trimmed piece coordinates to untrimmed piece coordinates
         let actual_y = y as i32 - piece.offset_y as i32;
-        let actual_x = x as i32- piece.offset_x as i32;
+        let actual_x = x as i32 - piece.offset_x as i32;
         
         // Output format: X Y (column row)
         println!("{} {}", actual_x, actual_y);
