@@ -7,5 +7,10 @@ edition = "2021"
 name = "bot"
 path = "src/main.rs"
 
+
+[[bin]]
+name = "visualizer"
+path = "src/visualizer.rs"
+
 [dependencies]
 sdl2 = "0.37"

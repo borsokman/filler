@@ -51,3 +51,8 @@ Visualizer inside /solution:
 ./target/release/visualizer logs/bender_map00.txt
 
 ./target/release/visualizer logs/terminator_map00.txt
+
+export LIBRARY_PATH="/opt/homebrew/lib"
+export CPLUS_INCLUDE_PATH="/opt/homebrew/include"
+export CPATH="/opt/homebrew/include"
+export PKG_CONFIG_PATH="/opt/homebrew/lib/pkgconfig"
