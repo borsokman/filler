@@ -17,16 +17,8 @@ pub fn get_positions(map: &Map, player: &Player) -> (Vec<(usize, usize)>, Vec<(u
     (my_positions, enemy_positions)
 }
 
-pub fn can_place(
-    map: &Map,
-    piece: &Piece,
-    player: &Player,
-    board_y: usize,
-    board_x: usize,
-) -> bool {
-
+pub fn can_place(map: &Map, piece: &Piece, player: &Player, board_y: usize, board_x: usize) -> bool {
     let mut overlap_count = 0;
-
     for py in 0..piece.height {
         for px in 0..piece.width {
             if piece.shape[py][px] != 'O' {
@@ -105,18 +97,6 @@ fn count_adjacent_enemy_cells(map: &Map, piece: &Piece, player: &Player, board_y
     count
 }
 
-fn count_new_cells(piece: &Piece) -> usize {
-    let mut count = 0;
-    for py in 0..piece.height {
-        for px in 0..piece.width {
-            if piece.shape[py][px] == 'O' {
-                count += 1;
-            }
-        }
-    }
-    count
-}
-
 pub fn find_best_move(map: &Map, piece: &Piece, player: &Player) -> (usize, usize) {
 
     if piece.height > map.height || piece.width > map.width {
@@ -125,7 +105,7 @@ pub fn find_best_move(map: &Map, piece: &Piece, player: &Player) -> (usize, usiz
 
     let (_my_positions, enemy_positions) = get_positions(map, player);
     let current_global_min = shortest_distance_between_players(map, player);
-    let mut all_moves: Vec<((usize, usize), usize, usize, usize)> = Vec::new();
+    let mut all_moves: Vec<((usize, usize), usize, usize)> = Vec::new();
     let max_y = map.height - piece.height;
     let max_x = map.width - piece.width;
   
@@ -141,8 +121,7 @@ pub fn find_best_move(map: &Map, piece: &Piece, player: &Player) -> (usize, usiz
                             let piece_y = y + py;
                             let piece_x = x + px;
                             for &(ey, ex) in &enemy_positions {
-                                let dist = ((piece_y as isize - ey as isize).abs()
-                                    + (piece_x as isize - ex as isize).abs()) as usize;
+                                let dist = ((piece_y as isize - ey as isize).abs() + (piece_x as isize - ex as isize).abs()) as usize;
                                 if dist < local_min_dist {
                                     local_min_dist = dist;
                                 }
@@ -151,8 +130,7 @@ pub fn find_best_move(map: &Map, piece: &Piece, player: &Player) -> (usize, usiz
                     }
                 }
                 
-                let new_cells = count_new_cells(piece);
-                all_moves.push(((y, x), touch_count, local_min_dist, new_cells));
+                all_moves.push(((y, x), touch_count, local_min_dist));
             }
         }
     }
@@ -163,37 +141,24 @@ pub fn find_best_move(map: &Map, piece: &Piece, player: &Player) -> (usize, usiz
 
     // Sort moves
     all_moves.sort_by(|a, b| {
-        match b.1.cmp(&a.1) { 
-            std::cmp::Ordering::Equal => {
-                if a.1 > 0 {
-                    match b.3.cmp(&a.3) {
-                        std::cmp::Ordering::Equal => a.0.cmp(&b.0),
-                        other => other,
-                    }
-                } else {
-                    let a_improves = a.2 < current_global_min;
-                    let b_improves = b.2 < current_global_min;
-                    
-                    match (a_improves, b_improves) {
-                        (true, false) => std::cmp::Ordering::Less,
-                        (false, true) => std::cmp::Ordering::Greater,
-                        _ => {
-                            match a.2.cmp(&b.2) {
-                                std::cmp::Ordering::Equal => {
-                                    match b.3.cmp(&a.3) {
-                                        std::cmp::Ordering::Equal => a.0.cmp(&b.0),
-                                        other => other,
-                                    }
-                                }
-                                other => other,
-                            }
-                        }
-                    }
+    match b.1.cmp(&a.1) { // touch_count, prefer more
+        std::cmp::Ordering::Equal => {
+            if a.1 > 0 {
+                a.0.cmp(&b.0) // prefer top-left-most if tie
+            } else {
+                let a_improves = a.2 < current_global_min;
+                let b_improves = b.2 < current_global_min;
+
+                match (a_improves, b_improves) {
+                    (true, false) => std::cmp::Ordering::Less,
+                    (false, true) => std::cmp::Ordering::Greater,
+                    _ => a.2.cmp(&b.2).then(a.0.cmp(&b.0)), // prefer closer, then top-left-most
                 }
             }
-            other => other,
         }
-    });
+        other => other,
+    }
+  });
 
     all_moves[0].0
 }

@@ -14,7 +14,7 @@ Recompile steps:
 
 docker run --rm -v "$(pwd)/solution":/filler/solution -it filler
 cd /filler/solution
-cargo build --release
+cargo build --release --bin bot
 cp target/release/solution bot
 cd /filler
 
