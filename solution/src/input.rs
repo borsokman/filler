@@ -108,8 +108,6 @@ pub fn read_piece() -> Option<Piece> {
     };
 
     let parts: Vec<&str> = line.split_whitespace().collect();
-    let original_width: usize = parts[1].parse().ok()?;
-    let original_height: usize = parts[2].trim_end_matches(':').parse().ok()?;
     let _width: usize = parts[1].parse().ok()?;
     let height: usize = parts[2].trim_end_matches(':').parse().ok()?;
 
@@ -123,16 +121,14 @@ pub fn read_piece() -> Option<Piece> {
 
     if trimmed_shape.is_empty() {
         // If the piece is empty, return a piece with 0 width and height.
-        Some(Piece { width: 0, height: 0, shape: trimmed_shape, offset_x: 0, offset_y: 0,  original_width, original_height, })
+        Some(Piece { width: 0, height: 0, shape: trimmed_shape, offset_x: 0, offset_y: 0 })
     } else {
         let piece = Piece { 
             width: trimmed_shape[0].len(), 
             height: trimmed_shape.len(), 
             shape: trimmed_shape,
             offset_x,
-            offset_y,
-            original_width,
-            original_height,
+            offset_y
         };
         Some(piece)
     }

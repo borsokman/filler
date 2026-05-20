@@ -6,8 +6,6 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::time::Duration;
 
-const CELL_SIZE: u32 = 20;
-
 #[derive(Clone, Debug)]
 struct GameState {
     map: Vec<Vec<char>>,
@@ -57,17 +55,20 @@ fn parse_log_file(filename: &str) -> Vec<GameState> {
     states
 }
 
-fn draw_state(canvas: &mut sdl2::render::Canvas<sdl2::video::Window>, state: &GameState) {
+fn draw_state(canvas: &mut sdl2::render::Canvas<sdl2::video::Window>, state: &GameState, cell_size: u32, ) {
     canvas.set_draw_color(Color::RGB(20, 20, 30));
     canvas.clear();
+
+    let pad = 1u32;
     for y in 0..state.height {
         for x in 0..state.width {
             let rect = Rect::new(
-                (x as u32 * CELL_SIZE) as i32,
-                (y as u32 * CELL_SIZE) as i32,
-                CELL_SIZE - 2,
-                CELL_SIZE - 2,
+                (x as u32 * cell_size) as i32,
+                (y as u32 * cell_size) as i32,
+                cell_size.saturating_sub(pad),
+                cell_size.saturating_sub(pad),
             );
+
             let color = match state.map[y][x] {
                 '@' => Color::RGB(100, 150, 255),
                 'a' => Color::RGB(80, 120, 200),
@@ -76,36 +77,55 @@ fn draw_state(canvas: &mut sdl2::render::Canvas<sdl2::video::Window>, state: &Ga
                 _ => Color::RGB(40, 40, 50),
             };
             canvas.set_draw_color(color);
-            canvas.fill_rect(rect).unwrap();
+            let _ = canvas.fill_rect(rect);
         }
     }
     canvas.present();
 }
 
 fn main() {
+
     let args: Vec<String> = std::env::args().collect();
     if args.len() < 2 {
         eprintln!("Usage: {} <log_file>", args[0]);
         std::process::exit(1);
     }
+
     let log_file = &args[1];
     let states = parse_log_file(log_file);
     if states.is_empty() {
         eprintln!("No game states found in log file");
         std::process::exit(1);
     }
+
     let first_state = &states[0];
-    let window_width = first_state.width as u32 * CELL_SIZE;
-    let window_height = first_state.height as u32 * CELL_SIZE;
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
+
+    let bounds = video_subsystem.display_bounds(0).unwrap();
+    let screen_w = bounds.width() as u32;
+    let screen_h = bounds.height() as u32;
+
+    let margin = 80u32;
+    let avail_w = screen_w.saturating_sub(margin);
+    let avail_h = screen_h.saturating_sub(margin);
+
+    let cell_w = avail_w / first_state.width as u32;
+    let cell_h = avail_h / first_state.height as u32;
+    let cell_size = cell_w.min(cell_h).clamp(2, 60);
+
+    let window_width = first_state.width as u32 * cell_size;
+    let window_height = first_state.height as u32 * cell_size;
+
     let window = video_subsystem
         .window("Filler Visualizer", window_width, window_height)
         .position_centered()
         .build()
         .unwrap();
+
     let mut canvas = window.into_canvas().build().unwrap();
     let mut event_pump = sdl_context.event_pump().unwrap();
+
     let mut current_turn = 0;
     'running: loop {
         for event in event_pump.poll_iter() {
@@ -133,8 +153,12 @@ fn main() {
                 },
                 _ => {}
             }
+            if let Event::Quit { .. } = event {
+                break 'running;
+            }
         }
-        draw_state(&mut canvas, &states[current_turn]);
+        
+        draw_state(&mut canvas, &states[current_turn], cell_size);
         std::thread::sleep(Duration::from_millis(16));
     }
 }
